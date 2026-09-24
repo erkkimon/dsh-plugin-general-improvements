@@ -1,0 +1,15 @@
+# Bundle self-activation patch: when this package is installed into a profile
+# via `dsh plugin --profile <name> add dsh-plugin-general-improvements` (or a
+# local checkout / git URL), this patch mounts the plugin's host half. The
+# client half is discovered automatically from the `dsh.client` declaration in
+# package.json.
+#
+# ONE registration per plugin. If the profile is managed by configuration
+# management that renders its own `insert` row into the profile's
+# cordis.patch.yml, make sure this package is not also registered there or in
+# `dsh.profile.bundles`: the loader treats a duplicate entry id as fatal, the
+# process exits 1 at boot, a supervisor restart-loops it, and any reverse
+# proxy in front returns 502.
+- insert:
+    - id: general-improvements
+      name: dsh-plugin-general-improvements
