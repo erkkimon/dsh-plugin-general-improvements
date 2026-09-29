@@ -193,3 +193,7 @@ node --check lib/index.js && node --check lib/client.js
 ## License
 
 MIT
+
+## 5. Question card on phones: "Skip", not "Skip this question"
+
+On a narrow screen the agent's question card was so wide that its Next/Submit button was pushed past the right edge. On viewports up to 720 px the skip button now reads just **Skip** (a CSS label swap, so it is the same in every UI language) and the footer wraps instead of overflowing. Client-only; wider screens are unchanged.
