@@ -62,6 +62,48 @@ legible in greyscale.
   stylesheet draws the mark as a CSS shape. It also listens to
   `api-session/error` so a live failure is marked immediately.
 
+## 2. Current time in the model's context
+
+A model has no clock. Left alone it assumes the moment of the first message
+still holds, so it keeps saying "good morning" all afternoon, and a chat
+resumed the next day carries on in the same morning.
+
+DSH ships an opt-in plugin for this, `@deepseek-ai/dsh-time-context`, which is
+mounted in no profile by default. This package's bundle patch mounts it (id
+`time-context`, refresh interval 10 minutes). Before a step it adds a durable
+message to the session, for example:
+
+```
+Time sampled while preparing turn 3, step 1: 2026-09-29T16:49:03+03:00[Europe/Helsinki]
+Browser time zone for this request: Europe/Helsinki. Interpret otherwise-unqualified dates and times in this zone.
+Elapsed since the preceding model-visible message: 1d 3h 12m 5s.
+```
+
+The time zone is the browser's, so it follows a user on a phone abroad. The
+"elapsed since the preceding message" line is what makes a resumed chat aware
+that the day changed. With a 10 minute refresh interval a long agent run adds
+one small message per window instead of one per step, and a resumed chat
+always gets a fresh one on its first turn after a pause.
+
+If your profile already registers `@deepseek-ai/dsh-time-context` under
+another id, remove the row from `cordis.patch.yml` to avoid running it twice.
+
+## 3. Copy and paste buttons in the composer
+
+Two compact buttons sit in the composer's tool row.
+
+- **Copy message** puts the whole draft on the clipboard (disabled while the
+  draft is empty).
+- **Paste from clipboard** appends the clipboard text to the end of the draft.
+  On a phone the editor is not focused by the paste, so the virtual keyboard
+  does not appear and the layout does not jump. That avoids the long-press
+  paste menu and its keyboard. If the editor already had focus, it keeps it.
+
+Each button flashes a check mark on success or a tooltip with the reason on
+failure. Reading the clipboard needs a secure context (HTTPS or localhost)
+and the browser's permission; over plain-HTTP LAN access the paste button
+says so. Copy falls back to the legacy `execCommand` path there.
+
 ## Requirements
 
 DeepSeek Harness `0.1.2-rc.1` or compatible, on a web profile. The plugin
@@ -82,7 +124,8 @@ dsh plugin --profile web add link:/path/to/dsh-plugin-general-improvements
 ```
 
 Either way the package ships a bundle self-activation patch, so it is
-registered automatically. Restart the web surface afterwards.
+registered automatically (this includes the time-context row of improvement
+2). Restart the web surface afterwards.
 
 > **One registration per plugin.** If your profile is managed centrally (for
 > example by a configuration-management role that renders its own `insert`
