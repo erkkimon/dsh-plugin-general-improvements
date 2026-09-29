@@ -90,8 +90,9 @@ another id, remove the row from `cordis.patch.yml` to avoid running it twice.
 
 ## 3. Copy and paste buttons in the composer
 
-Two compact buttons sit in the composer's tool row.
+Compact buttons sit in the composer's tool row.
 
+- **Share location** (pin) — see improvement 4.
 - **Copy message** puts the whole draft on the clipboard (disabled while the
   draft is empty).
 - **Paste from clipboard** appends the clipboard text to the end of the draft.
@@ -103,6 +104,40 @@ Each button flashes a check mark on success or a tooltip with the reason on
 failure. Reading the clipboard needs a secure context (HTTPS or localhost)
 and the browser's permission; over plain-HTTP LAN access the paste button
 says so. Copy falls back to the legacy `execCommand` path there.
+
+## 4. Who, where and on what network: environment context for the model
+
+The agent gets a short, durable message describing its surroundings:
+
+```
+Agent runs as user "erkkimon" on host "ferocitee".
+That host is connected to the Wi-Fi network "HomeNet".
+User location as reported by the user's mobile browser 3 min ago: 60.1699, 24.9384 (accuracy ±25 m). This is where the user is, not necessarily where the host is.
+```
+
+- **User and host name** are always sent (the OS user the DSH process runs as
+  and its hostname).
+- **Wi-Fi name** is the SSID the *DSH host* is joined to (`iwgetid`, falling
+  back to `nmcli`). It is left out when the host has no Wi-Fi radio or is not
+  associated, so a wired workstation never says anything false.
+  **A web page cannot read the SSID of the phone or laptop it runs on** — no
+  browser API exposes it. When the browser supports it, the network *type*
+  (`wifi`, `cellular`, `4g`, ...) is passed along instead and labelled as such.
+- **Location** is **opt-in**. A pin button in the composer's tool row turns
+  sharing on; the browser then asks for its own location permission. While on,
+  the position refreshes every 5 minutes while the tab is visible. Click the
+  button again to stop and the host forgets the position at once. It needs a
+  secure context (HTTPS or localhost); over plain HTTP the button says so.
+
+The message is added when a fact changes (coordinates are compared at about
+11 m resolution) and at least every 30 minutes, not on every step. The host
+keeps the last report **in memory only** — this plugin never writes it to
+disk — and drops it after 12 hours without a refresh. The text goes to
+whichever model provider the session uses, like any other context, so turn
+location sharing off when that provider should not know where you are.
+
+`GET /general-improvements/context` returns the text the model would be given
+right now (and whether a location is on file) — handy for checking.
 
 ## Requirements
 
