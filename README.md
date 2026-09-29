@@ -127,7 +127,8 @@ User location as reported by the user's mobile browser 3 min ago: 60.1699, 24.93
   sharing on; the browser then asks for its own location permission. While on,
   the position refreshes every 5 minutes while the tab is visible. Click the
   button again to stop and the host forgets the position at once. It needs a
-  secure context (HTTPS or localhost); over plain HTTP the button says so.
+  secure context (HTTPS or localhost); over plain HTTP the button says so. Every failure (blocked, no fix, timeout, framed without permission) is also shown as a short banner, since a phone has no tooltips.
+  Inside the Multi-DSH wrapper the iframe must carry `allow="geolocation"` (it does since 2026-09-29).
 
 The message is added when a fact changes (coordinates are compared at about
 11 m resolution) and at least every 30 minutes, not on every step. The host
