@@ -13,3 +13,9 @@
 - insert:
     - id: general-improvements
       name: dsh-plugin-general-improvements
+    # Improvement 2: current time in the model's context. DSH's own opt-in
+    # clock plugin, mounted in no profile by default.
+    - id: time-context
+      name: '@deepseek-ai/dsh-time-context'
+      config:
+        refreshIntervalMs: 600000
