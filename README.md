@@ -26,9 +26,13 @@ This plugin adds:
 - **Mark as read** as an extra entry in each row's three-dot (⋯) menu, below
   Rename / Fork / Archive. It clears the error ring, a manual unread dot and
   the shipped green "completed" dot in one go.
+- **Clear error indicator** next to it (shown only while the row has an
+  error): removes just the error ring, for a failure you no longer care
+  about, and leaves any unread or completed dot alone. It stays cleared until
+  the *next* failure.
 - **A right-click menu** on every session row (grouped tree, flat list and
   search results):
-  - **Mark as read** — same as above.
+  - **Mark as read** and **Clear error indicator** — same as above.
   - **Mark as unread** — a manual dot, for a conversation you want to come
     back to. It survives reloads and clears when you open the session again
     or choose *Mark as read*.
