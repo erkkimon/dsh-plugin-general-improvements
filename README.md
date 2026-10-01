@@ -15,26 +15,31 @@ gets done.
 
 This plugin adds:
 
-- **An `!` badge** (exclamation mark in a ring) on a session row whose last
-  turn ended abnormally — `turn/end` reason `error`, `interrupted`, `blocked`,
+- **A small hollow ring** (same size as the unread dot, so it does not
+  compete with the folder icons) on a session row whose **last turn** ended
+  abnormally — `turn/end` reason `error`, `interrupted`, `blocked`,
   `max-tokens`, or an `aborted` that the user or parent agent did not ask for.
-  Hover the row to read the error. The mark **never disappears on its own**,
-  and because it is folded from the session log it also covers failures that
-  happened while no browser was open.
+  Hover the row to read the error. It clears **automatically** as soon as a
+  later turn ends well (or a new turn starts), and because it is folded from
+  the session log it also covers failures that happened while no browser was
+  open.
+- **Mark as read** as an extra entry in each row's three-dot (⋯) menu, below
+  Rename / Fork / Archive. It clears the error ring, a manual unread dot and
+  the shipped green "completed" dot in one go.
 - **A right-click menu** on every session row (grouped tree, flat list and
   search results):
-  - **Mark as cleared** — removes the badge, until the *next* failure.
-  - **Mark as unread** / **Mark as read** — a manual dot, for a conversation
-    you want to come back to. It survives reloads and clears when you open
-    the session again or choose *Mark as read*.
+  - **Mark as read** — same as above.
+  - **Mark as unread** — a manual dot, for a conversation you want to come
+    back to. It survives reloads and clears when you open the session again
+    or choose *Mark as read*.
   - **Copy session id**.
 
-Precedence per row: running spinner › `!` error badge › unread dot › the
+Precedence per row: running spinner › error ring › unread dot › the
 shipped state.
 
 ### Accessible by construction
 
-The two states differ by **shape** first — `!` in a ring versus a filled dot —
+The two states differ by **shape** first — a hollow ring versus a filled dot —
 so nothing depends on telling red from green. (The default palette's error and
 success colours are exactly that pair, which is the most common form of colour
 vision deficiency; a red dot and a green dot are the same dot to a sizeable
