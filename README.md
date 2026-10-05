@@ -30,6 +30,8 @@ This plugin adds:
   error): removes just the error ring, for a failure you no longer care
   about, and leaves any unread or completed dot alone. It stays cleared until
   the *next* failure.
+- **Mark as unread** last in the same menu (hidden while the row is already
+  marked unread): puts a green dot on the row until you open it again.
 - **A right-click menu** on every session row (grouped tree, flat list and
   search results):
   - **Mark as read** and **Clear error indicator** — same as above.
