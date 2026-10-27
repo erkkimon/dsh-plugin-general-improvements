@@ -121,8 +121,9 @@ says so. Copy falls back to the legacy `execCommand` path there.
 The agent gets a short, durable message describing its surroundings:
 
 ```
-Agent runs as user "erkkimon" on host "ferocitee".
+Agent runs as user "alice" on host "workstation".
 That host is connected to the Wi-Fi network "HomeNet".
+The user is on a mobile device. Prefer giving options as text instead of using multi-choice modals.
 User location as reported by the user's mobile browser 3 min ago: 60.1699, 24.9384 (accuracy ±25 m). This is where the user is, not necessarily where the host is.
 ```
 
@@ -134,6 +135,10 @@ User location as reported by the user's mobile browser 3 min ago: 60.1699, 24.93
   **A web page cannot read the SSID of the phone or laptop it runs on** — no
   browser API exposes it. When the browser supports it, the network *type*
   (`wifi`, `cellular`, `4g`, ...) is passed along instead and labelled as such.
+- **Device kind** — `mobile` (coarse pointer) or `desktop` — is always sent,
+  with a hint on how to offer choices: as text on a phone, as a multi-choice
+  modal on a desktop. Every open browser reports it on load and whenever it
+  gets focus, so the one the user is actually typing in wins.
 - **Location** is **opt-in**. A pin button in the composer's tool row turns
   sharing on; the browser then asks for its own location permission. While on,
   the position refreshes every 5 minutes while the tab is visible. Click the
@@ -153,7 +158,7 @@ right now (and whether a location is on file) — handy for checking.
 
 ## Requirements
 
-DeepSeek Harness `0.1.2-rc.1` or compatible, on a web profile. The plugin
+DeepSeek Harness `0.1.2-rc.1` or `0.2.1-rc.2` (or compatible), on a web profile. The plugin
 reads only session metadata and its own flag file; it sends nothing anywhere.
 
 ## Install
