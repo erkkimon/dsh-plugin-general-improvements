@@ -163,23 +163,38 @@ tokens). On 2026-10-31 a Claude Opus session at 760k tokens started failing ever
 `TRANSPORT: claude API request failed`. That is not the context-overflow code that triggers DSH's
 compaction, so `llm-retry` backed off ten times per turn and every later message died the same way.
 
-Two fixes, independent of each other:
+The context guard (`lib/context-guard.js`) adds two things on top of DSH's own compaction, using the
+compaction backend the agent already has (it does nothing when none is mounted):
 
-- **Earlier compaction** (bundle patch): a config-only row for the base `compaction-basic` entry
-  sets `thresholdRatio: 0.35` and `retainRatio: 0.08` for `claude-opus-5-5`, `claude-opus-5`,
-  `claude-sonnet-5` and `claude-fable-5`. Those sessions are summarised at about 350k tokens and
-  keep the newest ~80k verbatim. Other models keep the shipped defaults.
-- **Context guard** (host half, `lib/context-guard.js`): an `agent/request-error` listener that runs
-  before `llm-retry`. The first failure of a step is left alone. From the second `TRANSPORT`,
-  `SERVER`, `TIMEOUT` or `EMPTY_RESPONSE` failure on, if the request is at least 250k tokens, it
-  compacts the **oldest** history (at most 120k tokens per pass, so the summary request is itself
-  small) and retries. At most 4 passes per step; then `llm-retry` decides as before. The cut never
-  separates a tool call from its result, and the system message is never compacted. Without a
-  compaction backend mounted it does nothing.
+- **Early compaction.** Before a step, a session above **350k tokens** has its oldest history
+  compacted until it is under **250k**. The system message is never compacted, a tool call is never
+  separated from its result, and each pass summarises at most 120k tokens, so the summary request is
+  itself small. A failure only logs a warning; the step always continues.
+- **Rescue on repeated failures.** From the second `TRANSPORT`, `SERVER`, `TIMEOUT` or
+  `EMPTY_RESPONSE` failure in one step, if the request is at least 250k tokens, it compacts the
+  oldest chunk and retries, before `llm-retry` backs off. At most 4 passes per step; then
+  `llm-retry` decides as before.
 
-On a centrally managed profile (an ansible role rendering its own rows), the bundle patch of this
-package is not read: add the same `compaction-basic` row to the managed patch. The guard needs no
-configuration.
+Why not just lower compaction-basic's threshold in a patch: on DSH 0.2 the compaction backend is
+mounted inside each agent preset's isolated group, and a profile patch keyed by `compaction-basic`
+only reaches a disabled host-level row. Overriding the preset means replacing its whole plugin list.
+
+Tune it with the plugin row's config (all integers, tokens; `earlyCompactTokens: 0` turns the early
+pass off):
+
+```yaml
+- id: general-improvements
+  config:
+    contextGuard:
+      earlyCompactTokens: 350000
+      earlyTargetTokens: 250000
+      chunkTokens: 120000
+      largeRequestTokens: 250000
+      failuresBeforeCompact: 2
+      maxCompactionsPerStep: 4
+```
+
+The log says `context guard (early): 480000 -> 240000 tokens in 3 pass(es)` when it acts.
 
 Test: `npm test` (`node --test`, offline).
 

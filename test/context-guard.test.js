@@ -5,7 +5,7 @@
 // recovers on CONTEXT_WINDOW_EXCEEDED, so llm-retry backed off ten times per turn and the session was dead.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installContextGuard, shouldCompactOnFailure, GUARD_DEFAULTS } from '../lib/context-guard.js'
+import { installContextGuard, shouldCompactOnFailure, GUARD_DEFAULTS, resolveGuardConfig } from '../lib/context-guard.js'
 
 test('compacts only a large request after repeated retryable failures, a bounded number of times per step', () => {
   const base = { code: 'TRANSPORT', totalTokens: 760000, failures: 2, compactionsThisStep: 0 }
@@ -139,6 +139,19 @@ test('listener: small sessions, failed compactions and a missing service fall th
   }
 })
 
+test('listener: services are found through the agent context (the preset-isolated compaction backend)', async () => {
+  const session = fakeSession(91, 8000)
+  const { ctx, listeners, regions } = fakeCtx(session)
+  const agentGet = ctx.get
+  ctx.get = (name) => name === 'compaction' ? undefined : agentGet(name)   // the host cannot see it
+  installContextGuard(ctx)
+  const fn = listeners['agent/request-error'][0].fn
+  const a = { session, ctx: { get: agentGet } }
+  await fn(fail(a), next)
+  assert.deepEqual(await fn(fail(a), next), { kind: 'retry' })
+  assert.equal(regions.length, 1)
+})
+
 test('listener: an aborted turn is never compacted', async () => {
   const session = fakeSession(91, 8000)
   const { ctx, listeners, regions } = fakeCtx(session)
@@ -149,4 +162,36 @@ test('listener: an aborted turn is never compacted', async () => {
   await fn({ ...fail(a), signal: dead.signal }, next)
   assert.equal(await fn({ ...fail(a), signal: dead.signal }, next), 'delegated')
   assert.deepEqual(regions, [])
+})
+
+test('early compaction: a step over earlyCompactTokens compacts the oldest chunks down to the target', async () => {
+  const session = fakeSession(61, 8000)              // ~481k tokens
+  const { ctx, listeners, regions } = fakeCtx(session)
+  installContextGuard(ctx)
+  const fn = listeners['agent/pre-step'][0].fn
+  const decision = { kind: 'continue', messages: [] }
+  assert.equal(await fn({ agent: { session }, signal: ac.signal }, () => Promise.resolve(decision)), decision)
+  const total = session.surface.nodes.reduce((a, s) => a + session.eventAt(s).tokens, 0)
+  assert.ok(total < GUARD_DEFAULTS.earlyCompactTokens, `${total} left`)
+  assert.ok(total >= GUARD_DEFAULTS.earlyTargetTokens - GUARD_DEFAULTS.chunkTokens, 'does not over-compact')
+  assert.ok(regions.length >= 1 && regions.length <= GUARD_DEFAULTS.maxCompactionsPerStep)
+  assert.equal(regions[0][0], 2, 'oldest first, system head kept')
+})
+
+test('early compaction: below the threshold nothing happens, and failures never block the step', async () => {
+  const small = fakeSession(30, 8000)                // ~233k
+  const a = fakeCtx(small); installContextGuard(a.ctx)
+  const decision = { kind: 'continue', messages: [] }
+  assert.equal(await a.listeners['agent/pre-step'][0].fn({ agent: { session: small }, signal: ac.signal }, () => Promise.resolve(decision)), decision)
+  assert.deepEqual(a.regions, [])
+  const big = fakeSession(61, 8000)
+  const b = fakeCtx(big, { compactThrows: new Error('boom') }); installContextGuard(b.ctx)
+  assert.equal(await b.listeners['agent/pre-step'][0].fn({ agent: { session: big }, signal: ac.signal }, () => Promise.resolve(decision)), decision)
+})
+
+test('config: plugin config overrides the defaults, unknown keys are rejected', () => {
+  assert.deepEqual(resolveGuardConfig(undefined), GUARD_DEFAULTS)
+  assert.equal(resolveGuardConfig({ contextGuard: { earlyCompactTokens: 5000, earlyTargetTokens: 3000, chunkTokens: 1000, largeRequestTokens: 4000 } }).earlyCompactTokens, 5000)
+  assert.throws(() => resolveGuardConfig({ contextGuard: { nope: 1 } }), /unknown/)
+  assert.throws(() => resolveGuardConfig({ contextGuard: { earlyTargetTokens: 999999 } }), /below/)
 })
