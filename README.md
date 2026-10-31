@@ -156,6 +156,33 @@ location sharing off when that provider should not know where you are.
 `GET /general-improvements/context` returns the text the model would be given
 right now (and whether a location is on file) — handy for checking.
 
+## 6. Long sessions do not die of their own size
+
+A long agent session on a 1M-token route used to be compacted only at 80 % of the window (about 800k
+tokens). On 2026-10-31 a Claude Opus session at 760k tokens started failing every request with
+`TRANSPORT: claude API request failed`. That is not the context-overflow code that triggers DSH's
+compaction, so `llm-retry` backed off ten times per turn and every later message died the same way.
+
+Two fixes, independent of each other:
+
+- **Earlier compaction** (bundle patch): a config-only row for the base `compaction-basic` entry
+  sets `thresholdRatio: 0.35` and `retainRatio: 0.08` for `claude-opus-5-5`, `claude-opus-5`,
+  `claude-sonnet-5` and `claude-fable-5`. Those sessions are summarised at about 350k tokens and
+  keep the newest ~80k verbatim. Other models keep the shipped defaults.
+- **Context guard** (host half, `lib/context-guard.js`): an `agent/request-error` listener that runs
+  before `llm-retry`. The first failure of a step is left alone. From the second `TRANSPORT`,
+  `SERVER`, `TIMEOUT` or `EMPTY_RESPONSE` failure on, if the request is at least 250k tokens, it
+  compacts the **oldest** history (at most 120k tokens per pass, so the summary request is itself
+  small) and retries. At most 4 passes per step; then `llm-retry` decides as before. The cut never
+  separates a tool call from its result, and the system message is never compacted. Without a
+  compaction backend mounted it does nothing.
+
+On a centrally managed profile (an ansible role rendering its own rows), the bundle patch of this
+package is not read: add the same `compaction-basic` row to the managed patch. The guard needs no
+configuration.
+
+Test: `npm test` (`node --test`, offline).
+
 ## Requirements
 
 DeepSeek Harness `0.1.2-rc.1` or `0.2.1-rc.2` (or compatible), on a web profile. The plugin
@@ -204,6 +231,7 @@ shell's module loader and shares the shell's React.
 
 ```sh
 node --check lib/index.js && node --check lib/client.js
+npm test
 ```
 
 ## License

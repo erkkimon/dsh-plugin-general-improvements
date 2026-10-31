@@ -19,3 +19,11 @@
       name: '@deepseek-ai/dsh-time-context'
       config:
         refreshIntervalMs: 600000
+# Improvement 6: compact long sessions on the 1M-window Claude routes much earlier. The shipped default
+# starts at 80 % of the window (~800k tokens); a 760k-token request failed at the provider transport
+# on 2026-10-31 and the session died. 35 % (~350k) keeps a long agent session well clear of that.
+# A config-only row for the base entry: no `name`, so it never inserts a second compaction backend.
+# Smaller-window routes keep the shipped defaults. One JSON line, so the offline test can read it.
+- id: compaction-basic
+  config:
+    modelPolicies: [{"provider": "claude", "model": "claude-opus-5-5", "thresholdRatio": 0.35, "retainRatio": 0.08}, {"provider": "claude", "model": "claude-opus-5", "thresholdRatio": 0.35, "retainRatio": 0.08}, {"provider": "claude", "model": "claude-sonnet-5", "thresholdRatio": 0.35, "retainRatio": 0.08}, {"provider": "claude", "model": "claude-fable-5", "thresholdRatio": 0.35, "retainRatio": 0.08}]
